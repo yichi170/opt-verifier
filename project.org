@@ -1,0 +1,67 @@
+#+TITLE: Recursion and Induction Project -- Constant Folding Verification
+#+AUTHOR: Yi-Chi Lee
+
+** Define the Language
+First, model the language that we would like to support. In this project, I use a expression language that supports the following operations:
+#+begin_src text
+  <expr> ::= <constant>
+         ::= <variable>
+         ::= <expr1> + <expr2>
+         ::= <expr1> * <expr2>
+#+end_src
+
+Represent the abovementioned operations in ACL2:
+#+begin_src text
+  <constant>                          -> (const n)
+  <variable>                          -> (var x)
+  <expr1> + <expr2>                   -> (add e1 e2)
+  <expr1> * <expr2>                   -> (mul e1 e2)
+#+end_src
+
+The "expression" can be recognized by:
+#+begin_src lisp
+  (defun exprp (x)
+    (if (consp x)
+        (cond ((eq (car x) 'const)
+               (integerp (cadr x)))
+              ((eq (car x) 'var)
+               (symbolp (cadr x)))
+              ((eq (car x) 'add)
+               (and (exprp (cadr x))
+                    (exprp (caddr x))))
+              ((eq (car x) 'mul)
+               (and (exprp (cadr x))
+                    (exprp (caddr x))))
+              (t nil))
+        nil))
+#+end_src
+
+Simple check for exprp:
+#+begin_src lisp
+  ACL2 !>(exprp '(add (mul (const 1) (const 2)) (mul (const 3) (const 4))))
+  T
+  ACL2 !>(exprp '(add (var abc) (const 2)))
+  T
+  ACL2 !>(exprp '(add abc (const 2))) ; The abc isn't wrapped by var
+  NIL
+#+end_src
+
+** Define the evaluation function
+The evaluation function is used to execute expressions and produce results. In this project, we will verify whether evaluating
+an expression before and after applying constant folding yields the same result.
+
+#+begin_src lisp
+  (defun eval-expr (e env)
+    (declare (xargs :guard (exprp e)))
+    (cond ((eq (car e) 'const) (cadr e))
+          ((eq (car e) 'var)
+           (cadr e)) ; need to modify!
+          ((eq (car e) 'add)
+           (+ (eval-expr (cadr e) env)
+              (eval-expr (caddr e) env)))
+          ((eq (car e) 'mul)
+           (* (eval-expr (cadr e) env)
+              (eval-expr (caddr e) env)))
+          (t nil)))
+#+end_src
+
