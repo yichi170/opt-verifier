@@ -8,6 +8,7 @@ First, model the language that we would like to support. In this project, I use 
          ::= <variable>
          ::= <expr1> + <expr2>
          ::= <expr1> * <expr2>
+         :: let <variable> = <expr1> in <expr2>
 #+end_src
 
 Represent the abovementioned operations in ACL2:
@@ -16,6 +17,7 @@ Represent the abovementioned operations in ACL2:
   <variable>                          -> (var x)
   <expr1> + <expr2>                   -> (add e1 e2)
   <expr1> * <expr2>                   -> (mul e1 e2)
+  let <variable> = <expr1> in <expr2> -> (let x e1 e2)
 #+end_src
 
 The "expression" can be recognized by:
@@ -32,6 +34,10 @@ The "expression" can be recognized by:
               ((eq (car x) 'mul)
                (and (exprp (cadr x))
                     (exprp (caddr x))))
+              ((eq (car x) 'let)
+               (and (symbolp (cadr x))
+                    (exprp (caddr x))
+                    (exprp (cadddr x))))
               (t nil))
         nil))
 #+end_src
@@ -44,6 +50,10 @@ Simple check for exprp:
   T
   ACL2 !>(exprp '(add abc (const 2))) ; The abc isn't wrapped by var
   NIL
+  ACL2 !>(exprp '(let a (const 2) (add (const 1) a)))
+  NIL
+  ACL2 !>(exprp '(let a (const 2) (add (const 1) (var a))))
+  T
 #+end_src
 
 ** Define the evaluation function
@@ -52,16 +62,30 @@ an expression before and after applying constant folding yields the same result.
 
 #+begin_src lisp
   (defun eval-expr (e env)
-    (declare (xargs :guard (exprp e)))
     (cond ((eq (car e) 'const) (cadr e))
           ((eq (car e) 'var)
-           (cadr e)) ; need to modify!
+           (cdr (assoc (cadr e) env)))
           ((eq (car e) 'add)
            (+ (eval-expr (cadr e) env)
               (eval-expr (caddr e) env)))
           ((eq (car e) 'mul)
            (* (eval-expr (cadr e) env)
               (eval-expr (caddr e) env)))
+          ((eq (car e) 'let)
+           (eval-expr (cadddr e)
+                      ; add (cons var val) to env
+                      (cons (cons (cadr e) (eval-expr (caddr e) env))
+                            env)))
           (t nil)))
+
+  (defun evl (e)
+    (eval-expr e nil))
 #+end_src
 
+Simple test for evl:
+#+begin_src lisp
+ACL2 !>(evl '(add (const 1) (const 2)))
+3
+ACL2 !>(evl '(let a (const 4) (add (const 1) (var a))))
+5
+#+end_src
