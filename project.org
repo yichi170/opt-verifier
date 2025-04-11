@@ -89,3 +89,38 @@ ACL2 !>(evl '(add (const 1) (const 2)))
 ACL2 !>(evl '(let a (const 4) (add (const 1) (var a))))
 5
 #+end_src
+
+** Define the optimizer (Constant Folding)
+Now, we have to define the constant folding optimizer, which would optimize and transform the original source code. (That's why we have to verify the correctness of it.)
+#+begin_src lisp
+  (defun const-fold (e)
+    (if (or (eq (car e) 'const) (eq (car e) 'var))
+        e
+        (if (eq (car e) 'add)
+            (let ((l (const-fold (cadr e)))
+                  (r (const-fold (caddr e))))
+              (if (and (eq (car l) 'const) (eq (car r) 'const))
+                  (list 'const (+ (cadr l) (cadr r)))
+                  e))
+            (if (eq (car e) 'mul)
+                (let ((l (const-fold (cadr e)))
+                      (r (const-fold (caddr e))))
+                  (if (and (eq (car l) 'const) (eq (car r) 'const))
+                      (list 'const (* (cadr l) (cadr r)))
+                      e))
+                (if (eq (car e) 'let)
+                    (list 'let (cadr e)
+                          (const-fold (caddr e))
+                          (const-fold (cadddr e)))
+                    e)))))
+#+end_src
+
+Simple test for const-fold:
+#+begin_src lisp
+  >(const-fold '(add (const 1) (mul (const 1) (const 3))))
+  (const 4)
+  >(const-fold '(add (const 1) (mul (var a) (const 3))))
+  (add (const 1) (mul (var a) (const 3)))
+  >(const-fold '(let a (add (const 1) (const 2)) (var a)))
+  (let a (const 3) (var a))
+#+end_src
