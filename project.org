@@ -124,3 +124,65 @@ Simple test for const-fold:
   >(const-fold '(let a (add (const 1) (const 2)) (var a)))
   (let a (const 3) (var a))
 #+end_src
+
+** Verifying the correctness of constant folding optimizer
+To verify the correctness of constant folding, we have to compare the evaluated result before and after the constant folding. If the results are equal, the constant folding
+is correct; otherwise, is change the operational semantics of the original language.
+
+*** Lemma 1:
+#+begin_src lisp
+                                          ; Lemma 1
+  (defthm const-fold-preserves-eval
+        (implies (and (exprp e) (alistp env))
+                 (equal (eval-expr (const-fold e) env)
+                        (eval-expr e env))))
+
+  ;; Q.E.D.
+
+  ;; Summary
+  ;; Form:  ( DEFTHM CONST-FOLD-PRESERVES-EVAL ...)
+  ;; Rules: ((:DEFINITION ALISTP)
+  ;;         (:DEFINITION CONST-FOLD)
+  ;;         (:DEFINITION EQ)
+  ;;         (:DEFINITION EVAL-EXPR)
+  ;;         (:DEFINITION EXPRP)
+  ;;         (:DEFINITION NOT)
+  ;;         (:EXECUTABLE-COUNTERPART EQUAL)
+  ;;         (:FAKE-RUNE-FOR-TYPE-SET NIL)
+  ;;         (:FORWARD-CHAINING ALISTP-FORWARD-TO-TRUE-LISTP)
+  ;;         (:INDUCTION CONST-FOLD)
+  ;;         (:INDUCTION EVAL-EXPR)
+  ;;         (:INDUCTION EXPRP)
+  ;;         (:REWRITE CAR-CONS)
+  ;;         (:REWRITE CDR-CONS)
+  ;;         (:TYPE-PRESCRIPTION ALISTP))
+  ;; Splitter rules (see :DOC splitter):
+  ;;   if-intro: ((:DEFINITION CONST-FOLD)
+  ;;              (:DEFINITION EXPRP))
+  ;; Time:  0.03 seconds (prove: 0.03, print: 0.00, other: 0.00)
+  ;; Prover steps counted:  14711
+  ;;  CONST-FOLD-PRESERVES-EVAL
+#+end_src
+
+*** Main Theorem
+#+begin_src lisp
+                                          ; Main Theorem
+  (defthm const-fold-correct
+      (implies (exprp e)
+               (equal (evl (const-fold e))
+                      (evl e))))
+
+  ;; Q.E.D.
+
+  ;; Summary
+  ;; Form:  ( DEFTHM CONST-FOLD-CORRECT ...)
+  ;; Rules: ((:DEFINITION EVL)
+  ;;         (:EXECUTABLE-COUNTERPART ALISTP)
+  ;;         (:FAKE-RUNE-FOR-TYPE-SET NIL)
+  ;;         (:REWRITE CONST-FOLD-PRESERVES-EVAL)
+  ;;         (:TYPE-PRESCRIPTION EXPRP))
+  ;; Warnings:  Subsume and Non-rec
+  ;; Time:  0.00 seconds (prove: 0.00, print: 0.00, other: 0.00)
+  ;; Prover steps counted:  639
+  ;; CONST-FOLD-CORRECT
+#+end_src
